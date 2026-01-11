@@ -12,16 +12,14 @@ pipeline {
     stage('Clone Repository') {
       steps {
         git branch: 'main',
-            url: 'https://github.com/meghana361/YOUR_REPO.git'
+            url: 'https://github.com/meghana361/student_collab.git'
       }
     }
 
     stage('Build Backend Image') {
       steps {
         dir('server') {
-          sh '''
-          docker build -t $BACKEND_IMAGE:latest .
-          '''
+          sh 'docker build -t $BACKEND_IMAGE:latest .'
         }
       }
     }
@@ -30,7 +28,9 @@ pipeline {
       steps {
         dir('client') {
           sh '''
-          docker build -t $FRONTEND_IMAGE:latest .
+          docker build \
+            --build-arg VITE_API_URL=/ \
+            -t $FRONTEND_IMAGE:latest .
           '''
         }
       }
@@ -39,7 +39,8 @@ pipeline {
     stage('Docker Login') {
       steps {
         sh '''
-        echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
+        echo $DOCKERHUB_CREDENTIALS_PSW | docker login \
+        -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
         '''
       }
     }
@@ -66,10 +67,10 @@ pipeline {
 
   post {
     success {
-      echo "🎉 Deployment Successful!"
+      echo "🎉 CI/CD Pipeline Successful!"
     }
     failure {
-      echo "❌ Deployment Failed!"
+      echo "❌ CI/CD Pipeline Failed!"
     }
   }
 }
