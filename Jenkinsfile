@@ -2,19 +2,11 @@ pipeline {
   agent any
 
   environment {
-    DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     BACKEND_IMAGE = "meghana361/student-backend"
     FRONTEND_IMAGE = "meghana361/student-frontend"
   }
 
   stages {
-
-    stage('Clone Repository') {
-      steps {
-        git branch: 'main',
-            url: 'https://github.com/meghana361/student_collab.git'
-      }
-    }
 
     stage('Build Backend Image') {
       steps {
@@ -29,7 +21,7 @@ pipeline {
         dir('client') {
           sh '''
           docker build \
-            --build-arg VITE_API_URL=/ \
+            --build-arg VITE_API_URL=http://backend-service:5000 \
             -t $FRONTEND_IMAGE:latest .
           '''
         }
@@ -38,18 +30,21 @@ pipeline {
 
     stage('Docker Login') {
       steps {
-        sh '''
-        echo $DOCKERHUB_CREDENTIALS_PSW | docker login \
-        -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
-        '''
+        withCredentials([usernamePassword(
+          credentialsId: 'dockerhub-creds',
+          usernameVariable: 'DOCKER_USER',
+          passwordVariable: 'DOCKER_PASS'
+        )]) {
+          sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+        }
       }
     }
 
     stage('Push Images') {
       steps {
         sh '''
-        docker push $BACKEND_IMAGE:latest
-        docker push $FRONTEND_IMAGE:latest
+          docker push $BACKEND_IMAGE:latest
+          docker push $FRONTEND_IMAGE:latest
         '''
       }
     }
@@ -57,9 +52,9 @@ pipeline {
     stage('Deploy to Kubernetes') {
       steps {
         sh '''
-        kubectl apply -f k8s/
-        kubectl rollout restart deployment backend-deployment
-        kubectl rollout restart deployment frontend-deployment
+          kubectl apply -f k8s/
+          kubectl rollout restart deployment backend-deployment || true
+          kubectl rollout restart deployment frontend-deployment || true
         '''
       }
     }
